@@ -1,6 +1,6 @@
 import styles from "@/styles/Home.module.css";
 import TextField from "@mui/material/TextField";
-import { ChangeEvent, useState } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
 import calculateIncomeTax from "./api/tax_calculator";
@@ -14,6 +14,7 @@ export default function Home() {
 
   const [relief, setRelief] = useState(0);
   const [reliefError, setReliefError] = useState(false);
+  const [reliefErrorMessage, setReliefErrorMessage] = useState("");
 
   const [originalTaxPayable, setOriginalTaxPayable] = useState<BigNumber>(
     new BigNumber(0)
@@ -21,6 +22,14 @@ export default function Home() {
   const [reducedTaxPayable, setReducedTaxPayable] = useState<BigNumber>(
     new BigNumber(0)
   );
+
+  useEffect(() => {
+    calculateTaxSavings();
+  }, [income]);
+
+  useEffect(() => {
+    calculateTaxSavings();
+  }, [relief]);
 
   return (
     <Stack spacing={2}>
@@ -43,13 +52,10 @@ export default function Home() {
           error={reliefError}
           helperText={
             reliefError
-              ? "Tax relief must be a positive integer or empty"
+              ? reliefErrorMessage
               : "Leave empty if you have no tax relief"
           }
         />
-        <Button variant="contained" color="primary" onClick={handleSubmit}>
-          Compute Tax Payable
-        </Button>
       </Stack>
 
       {!originalTaxPayable.isEqualTo(0) && (
@@ -82,7 +88,9 @@ export default function Home() {
     event: ChangeEvent<HTMLTextAreaElement | HTMLInputElement>
   ) {
     const value = event.target.value;
-    setIncome(parseInt(value));
+    const income = parseInt(value);
+
+    isNaN(income) ? setIncome(0) : setIncome(income);
     setIncomeError(!/^\d+$/.test(value));
   }
 
@@ -90,11 +98,25 @@ export default function Home() {
     event: ChangeEvent<HTMLTextAreaElement | HTMLInputElement>
   ) {
     const value = event.target.value;
-    setRelief(parseInt(value));
-    setReliefError(value !== "" && !/^\d+$/.test(value));
+    if (value !== "" && !/^\d+$/.test(value)) {
+      setReliefError(true);
+      setReliefErrorMessage("Tax relief must be a positive integer or empty");
+      return;
+    }
+
+    const relief = parseInt(value);
+    if (relief > 80000) {
+      setReliefError(true);
+      setReliefErrorMessage("Tax relief cannot exceed $80,000");
+      setRelief(80000);
+      return;
+    }
+
+    setReliefError(false);
+    isNaN(relief) ? setRelief(0) : setRelief(relief);
   }
 
-  function handleSubmit() {
+  function calculateTaxSavings() {
     const originalTaxPayable = calculateIncomeTax(income);
     const taxPayableAfterRelief = calculateIncomeTax(income, relief);
 
