@@ -1,4 +1,4 @@
-import Decimal from "decimal.js-light";
+import BigNumber from "bignumber.js";
 
 interface TaxBracketRate {
   lowerLimit: number;
@@ -25,18 +25,21 @@ const taxBrackets: Array<TaxBracketRate> = [
 export default function calculateIncomeTax(
   income: number,
   relief: number = 0
-): number {
+): BigNumber {
   const chargeableIncome = income - relief;
 
-  let taxPayable = 0;
+  let taxPayable = new BigNumber(0);
 
   for (const bracket of taxBrackets) {
     if (chargeableIncome <= bracket.lowerLimit) break;
 
     const taxableAmount =
       Math.min(chargeableIncome, bracket.upperLimit) - bracket.lowerLimit;
-    taxPayable += taxableAmount * bracket.taxRate;
+
+    const taxable = new BigNumber(taxableAmount);
+    const rate = new BigNumber(bracket.taxRate);
+    taxPayable = taxPayable.plus(taxable.multipliedBy(rate));
   }
 
-  return taxPayable;
+  return taxPayable.decimalPlaces(2);
 }
